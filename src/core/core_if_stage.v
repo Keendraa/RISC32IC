@@ -274,15 +274,12 @@ module if_stage
          //$display("instr: %h", instruction_rdata_i); 
          //$display("instr: %h", dd_instruction); 
     end
+    
 //VERSION 2.2
 //-----------------------------------------------------------------------
 //Adapted for brach instructions and PC unaligned
 /*
     assign d_instruction_o = brj_reg | core_init ? {25'b0, 7'b0010011}  :   dd_instruction;                                                                                            
-    localparam ALIGNED = 0;
-    localparam UNALIGNED_TO_ALIGNED = 1;
-    localparam UNALIGNED = 2;
-    localparam IDLE = 3;
     assign    op_1 = instruction_rdata_i[1:0];
     assign    op_2 = instruction_rdata_i[17:16];
 

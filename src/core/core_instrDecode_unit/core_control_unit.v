@@ -244,14 +244,14 @@ always@(*)
       OPCODE_U_LUI: begin  // Set and sign extend the 20-bit immediate (shited 12 bits left) and zero the bottom 12 bits into rd
         data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value, in dis case 0
         imm_val_o = { imm20[19:0], {`DATA_WIDTH - 20 {1'b0}} };
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
         ALU_op = `ALU_OP_ADD;  // Sum with 0
       end
 
       OPCODE_U_AUIPC: begin  // Place the PC plus the 20-bit signed immediate (shited 12 bits left) into rd (used before JALR)
         data_target_o = 2'b11;
         imm_val_o = { imm20[19:0], {`DATA_WIDTH - 20 {1'b0}} };
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
         ALU_op = `ALU_OP_ADD;  // Add the values
       end
 
@@ -260,7 +260,7 @@ always@(*)
         jump = 1'b1;
         data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and PC at the execution unit
         imm_val_o = {{`DATA_WIDTH - 21 {imm20j[19]}},  imm20j[19:0], 1'b0  }; // TODO last bit is used? or is always 0
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}; // Write the resut in RD          
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}); // Write the resut in RD          
         ALU_op = `ALU_OP_ADD;  // to add the immideate value to the PC
       end
 
@@ -272,7 +272,7 @@ always@(*)
         data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and mantain RS1 the value
         ALU_op = `ALU_OP_ADD;  
         imm_val_o = {{`DATA_WIDTH - 12 {imm12[11]}},  imm12[11:0] }; // no ^2
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
       end
 
       OPCODE_B_BRANCH: begin
@@ -294,7 +294,7 @@ always@(*)
       OPCODE_I_LOAD: begin  // Loads
          is_load_store = 1'b1;
          i_r1_o = 1'b1;
-         regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};      
+         regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});      
          ALU_op = `ALU_OP_ADD;  // to add the immideate value to the addr
          data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
          imm_val_o = {{`DATA_WIDTH - 12 {imm12[11]}},  imm12[11:0]  };
@@ -337,7 +337,7 @@ always@(*)
 
       OPCODE_I_IMM: begin
         data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
         i_r1_o = 1'b1;
         case(funct3)
           FUNCT3_SRL_SRA: begin
@@ -364,7 +364,7 @@ always@(*)
       end
 
       OPCODE_R_ALU: begin
-        regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};
+        regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
         i_r1_o = 1'b1;
         i_r2_o = 1'b1;
         ALU_op = {funct7[5], funct3};
@@ -417,55 +417,61 @@ always@(*)
         first_op_code <= instruction[15:13];
         
         case(quadrant_code)
-          2'b00:
+          2'b00: //QUADRANT 00 ------------------------------------------------------------------------------------------------------------------------------
           case(first_op_code)
           3'b000:
+          begin
             data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-            regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};
+            regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
             i_r1_o = 1'b1;
             imm_val_o = {{`DATA_WIDTH - 9 {instruction[10]}}, instruction[9:7], instruction[12:11], instruction[5], instruction[6], 2'b00};
             reg_d <= instruction[4:2];
             ALU_op <= `ALU_OP_ADD;
+          end
           //3'b001:
           3'b010://C.LW
+          begin
             is_load_store = 1'b1;
             i_r1_o = 1'b1;
             i_r2_o = 1'b1;
-            reg_d <= {3'b00,instruction[9:7]};
-            rs_2 <= {3'b000,instruction[4:2]};
-            regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};      
+            reg_d <= {3'b00,instruction[9:7]+5'b01000};
+            rs_2 <= {3'b000,instruction[4:2]+5'b01000};
+            regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});      
             ALU_op = `ALU_OP_ADD;  // to add the immideate value to the addr
             data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-            imm_val_o = {{`DATA_WIDTH - 4 {instruction[5]}},  instruction[12:10], instruction[6]  };
+            imm_val_o = {{`DATA_WIDTH - 6 {instruction[5]}},  instruction[12:10], instruction[6],2'b00  };
             data_rd_o = 1'b1;
             LOAD_op = `LOAD_LW;   // lw         "Load 32-bit value from addr in rs1 plus the 12-bit signed immediate and place sign-extended result into rd"
-          3'b011:
+          end
+          //3'b011:
           //3'b100: RESERVED
           //3'b101:
           3'b110://C.SW
+          begin
             is_load_store = 1'b1;
             ALU_op = `ALU_OP_ADD;  // to add the immideate value to the addr
             data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-            imm_val_o = {{`DATA_WIDTH - 4 {instruction[5]}},  instruction[12:10], instruction[6]  };
+            imm_val_o = {{`DATA_WIDTH - 6 {instruction[5]}},  instruction[12:10], instruction[6], 2'b00  };
             data_wr = 1'b1;  // Set the bit to write to memory
             data_target_o = 2'b1;
             i_r1_o = 1'b1;
             i_r2_o = 1'b1;
-            reg_d <= {3'b00,instruction[9:7]};
-            rs_2 <= {3'b000,instruction[4:2]};
+            reg_d <= {3'b00,instruction[9:7]+5'b01000};
+            rs_2 <= {3'b000,instruction[4:2]+5'b01000};
             STORE_op = `STORE_SW;  
             data_be_o = 4'b1111;
+          end
           //3'b111:
 
           endcase
-          2'b01://QUADRANT 01
+          2'b01://QUADRANT 01 ------------------------------------------------------------------------------------------------------------------------------
           begin
 
             case(first_op_code)
             3'b000://C.ADDI
             begin
               data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-              regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};
+              regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
               i_r1_o = 1'b1;
               imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
               reg_d <= instruction[11:7];
@@ -478,14 +484,14 @@ always@(*)
               data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and PC at the execution unit
               imm_val_o = {{`DATA_WIDTH - 11 {instruction[12]}}, instruction[8], instruction[10:9], instruction[6], instruction[7], instruction[2], instruction[11], instruction[5:3], 1'b0  }; 
               reg_d <= {5'b00001};//X[1]
-              regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}; // Write the resut in X[1]          
+              regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}); // Write the resut in X[1]          
               ALU_op = `ALU_OP_ADD;  // to add the immideate value to the PC
             end
             3'b010: //C.LI
             begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value, in dis case 0
                 imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                 ALU_op = `ALU_OP_ADD;  // Sum with 0              
             end
             3'b011: 
@@ -493,7 +499,7 @@ always@(*)
               if (instruction[11:7]==5'b00010)//C.ADDI16SP
               begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
                 i_r1_o = 1'b1;
                 imm_val_o = {{`DATA_WIDTH - 11 {instruction[12]}}, instruction[4:3],instruction[5],instruction[2],instruction[6], 6'b000000};
                 reg_d <= instruction[11:7];
@@ -503,7 +509,7 @@ always@(*)
               begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value, in dis case 0
                 imm_val_o = {{`DATA_WIDTH - 17 {instruction[12]}}, instruction[6:2], 12'b0};
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                 ALU_op = `ALU_OP_ADD;  // Sum with 0
               end
             end
@@ -518,7 +524,7 @@ always@(*)
                       reg_d <= {3'b00,instruction[9:7]};
                       rs_2 <= {3'b000,instruction[4:2]};
                       ALU_op <= `ALU_OP_SUB;
-                      regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                      regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                       i_r2_o = 1'b1; // To indicate Regfile access
                       i_r1_o = 1'b1; // To indicate Regfile access
                     end
@@ -527,7 +533,7 @@ always@(*)
                       reg_d <= {3'b00,instruction[9:7]};
                       rs_2 <= {3'b000,instruction[4:2]};
                       ALU_op <= `ALU_OP_XOR;
-                      regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                      regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                       i_r2_o = 1'b1; // To indicate Regfile access
                       i_r1_o = 1'b1; // To indicate Regfile access
                     end
@@ -536,7 +542,7 @@ always@(*)
                       reg_d <= {3'b00,instruction[9:7]};
                       rs_2 <= {3'b000,instruction[4:2]};
                       ALU_op <= `ALU_OP_OR;
-                      regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                      regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                       i_r2_o = 1'b1; // To indicate Regfile access
                       i_r1_o = 1'b1; // To indicate Regfile access
                     end
@@ -545,7 +551,7 @@ always@(*)
                       reg_d <= {3'b00,instruction[9:7]};
                       rs_2 <= {3'b000,instruction[4:2]};
                       ALU_op <= `ALU_OP_AND;
-                      regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                      regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                       i_r2_o = 1'b1; // To indicate Regfile access
                       i_r1_o = 1'b1; // To indicate Regfile access
                       
@@ -555,12 +561,12 @@ always@(*)
                     end*/
                   endcase
               end
-              else if instruction[11:10] == 3'b10 //C.AND
+              else if (instruction[11:10] == 3'b10) //C.AND
               begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
                 imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
                 reg_d <= {3'b00,instruction[9:7]};
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                 i_r1_o = 1'b1; // To indicate Regfile access
                 ALU_op <= `ALU_OP_AND;
               end
@@ -572,21 +578,21 @@ always@(*)
               begin
 
               end*/
-              else if instruction[11:10] == 2'b01 //C.SRAI
+              else if (instruction[11:10] == 2'b01) //C.SRAI
               begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
                 imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
                 reg_d <= {3'b00,instruction[9:7]};
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                 i_r1_o = 1'b1; // To indicate Regfile access
                 ALU_op <= `ALU_OP_SRA;
               end
-              else if instruction[11:10] == 2'b00//C.SRLI
+              else if (instruction[11:10] == 2'b00)//C.SRLI
               begin
                 data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
                 imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
                 reg_d <= {3'b00,instruction[9:7]};
-                regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}};  // Write the resut in RD
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
                 i_r1_o = 1'b1; // To indicate Regfile access
                 ALU_op <= `ALU_OP_SRL;
               end
@@ -610,7 +616,7 @@ always@(*)
               jump = 1'b1;
               data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and PC at the execution unit
               imm_val_o = {{`DATA_WIDTH - 11 {instruction[12]}}, instruction[8], instruction[10:9], instruction[6], instruction[7], instruction[2], instruction[11], instruction[5:3], 1'b0  }; 
-              regfile_wr = regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}; // Write the resut in X[1]          
+              regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}); // Write the resut in X[1]          
               ALU_op = `ALU_OP_ADD;  // to add the immideate value to the PC              
             end
             3'b110:
@@ -633,8 +639,107 @@ always@(*)
             end
             endcase
           end
-          //2'b10:
-
+          2'b10:// QUADRANT 10 ------------------------------------------------------------------------------------------------------------------------------
+          begin
+            case(first_op_code)
+            3'b000: //C.SLLI
+            begin
+              data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
+              regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
+              i_r1_o = 1'b1;
+              reg_d <= instruction[11:7];
+              imm_val_o = {{`DATA_WIDTH - 5 {instruction[12]}}, instruction[6:2]};
+              ALU_op = `ALU_OP_SLL;
+            end
+            3'b010: //C.LWSP
+            begin
+              is_load_store = 1'b1;
+              i_r1_o = 1'b1;
+              i_r2_o = 1'b1;
+              reg_d <= {instruction[11:7]};
+              rs_2 <= {5'b00010};
+              regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});      
+              ALU_op = `ALU_OP_ADD;  // to add the immideate value to the addr
+              data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
+              imm_val_o = {{`DATA_WIDTH - 7 {instruction[3]}},  instruction[2], instruction[12], instruction[6:4], 2'b00  };
+              data_rd_o = 1'b1;
+              LOAD_op = `LOAD_LW;   // lw         "Load 32-bit value from addr in rs1 plus the 12-bit signed immediate and place sign-extended result into rd"         
+            end   
+            3'b100: 
+            begin
+              if(instruction[12:2]==10'b10000000000)//C.EBREAK
+              begin
+                // All CSR instructions (CSRR[W,S,C][I]) write on the CSR destiny address.
+                csr_wr_o = |`FUNCT3_ECALL_EBREAK; // <- This discriminates CSR operations from ECALL/EBREAK
+                // All CSR instructions (CSRR[W,S,C][I]) read old CSR and write it on rd, unless it's x0.
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}}) & (|`FUNCT3_ECALL_EBREAK);
+                ALU_op = `ALU_OP_ADD; //rs1 is set to 0 for EXE. rd = rs1 + rs2 = 0 + CSR
+                // csr_op[2] = 1 indicates immediate. csr_op[1:0] indicates RW/RS/RC = 01/10/11. 
+                csr_op_o = `FUNCT3_ECALL_EBREAK;
+                i_r1_o = 1'b1;
+              end
+              else if((instruction[12]==10'b1) && (instruction[6:2]==5'b00000))//C.JALR
+              begin
+                data_target_o = 2'b11;
+                i_r2_o = 1'b1;
+                jump = 1'b1;
+                jalr_o = 1'b1;
+                data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and mantain RS1 the value
+                ALU_op = `ALU_OP_ADD;  
+                imm_val_o = {`DATA_WIDTH {0}}; 
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});  // Write the resut in RD
+                rs_2 <= instruction[11:7];
+                reg_d <= 5'b00001; 
+              end
+              else if((instruction[12]==10'b0) && (instruction[6:2]==5'b00000))//C.JR
+              begin
+                data_target_o = 2'b11;
+                i_r1_o = 1'b1;
+                jump = 1'b1;
+                jalr_o = 1'b1;
+                data_origin_o = `RS2IMM_RS1PC;  // Send the immediate value and mantain RS1 the value
+                ALU_op = `ALU_OP_ADD;  
+                imm_val_o = {`DATA_WIDTH {0}}; 
+                reg_d <= instruction[11:7];
+              end
+              else if(instruction[12]==10'b0 )//C.MV
+              begin
+                data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
+                i_r2_o = 1'b1;
+                i_r1_o = 1'b1;
+                imm_val_o = {`DATA_WIDTH {0}};
+                reg_d <= instruction[11:7];
+                rs_2 <= instruction[6:2];
+                ALU_op <= `ALU_OP_ADD;              
+              end
+              else if(instruction[12]==10'b1 )//C.ADD
+              begin
+                regfile_wr = (regfile_waddr != {`REG_ADDR_WIDTH {1'b0}});
+                i_r2_o = 1'b1;
+                i_r1_o = 1'b1;
+                reg_d <= instruction[11:7];
+                rs_2 <= instruction[6:2];
+                ALU_op <= `ALU_OP_ADD;  
+              end
+            end
+            3'b110: //C.SWSP
+            begin
+              is_load_store = 1'b1;
+              ALU_op = `ALU_OP_ADD;  // to add the immideate value to the addr
+              data_origin_o = `RS2IMM_RS1;  // Send the immediate value and mantain RS1 the value
+              imm_val_o = {{`DATA_WIDTH - 7 {instruction[8]}},  instruction[7], instruction[12:9], 2'b00  };
+              data_wr = 1'b1;  // Set the bit to write to memory
+              data_target_o = 2'b1;
+              i_r1_o = 1'b1;
+              i_r2_o = 1'b1;
+              reg_d <= {3'b00010};
+              rs_2 <= {3'b000,instruction[4:2]+5'b01000};
+              STORE_op = `STORE_SW;  
+              data_be_o = 4'b1111;   
+            end     
+            endcase
+          end
           
         endcase
       end
