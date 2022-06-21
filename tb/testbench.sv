@@ -30,6 +30,67 @@ always #50 clk = !clk;
 //** Instruction set RV32C Tests **
 //********************************* 
 
+task test_addiC; 
+  begin
+    $display("ADD Test");
+    pc = 32'b0;
+    pc_aux = 1'b0;
+
+    rstinstrMem();
+    encodeAddiC(5'h5, 12'd7);
+    
+    rst_n = 1'b1;
+    waitNclockCycles(8);
+    if (top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5] == 7) $display("OK: reg5 is : %h \n", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+    else begin
+      $display("ERROR: reg5 has to be 7 but is: %h", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+      //$fatal;
+    end
+    #400;
+  end
+endtask
+task test_addC; 
+  begin
+    $display("ADD Test");
+    pc = 32'b0;
+    pc_aux = 1'b0;
+
+    rstinstrMem();
+    encodeAddi(5'h0, 5'h3, 12'd5);
+    encodeAddi(5'h0, 5'h5, 12'd2);
+    encodeAddC(5'h3, 5'h5);
+    
+    rst_n = 1'b1;
+    waitNclockCycles(8);
+    if (top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5] == 7) $display("OK: reg5 is : %h \n", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+    else begin
+      $display("ERROR: reg5 has to be 7 but is: %h", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+      //$fatal;
+    end
+    #400;
+  end
+endtask
+task test_subC; 
+  begin
+    $display("ADD Test");
+    pc = 32'b0;
+    pc_aux = 1'b0;
+
+    rstinstrMem();
+    encodeAddi(5'h0, 5'h3, 12'd2);
+    encodeAddi(5'h0, 5'h5, 12'd5);
+    encodeSubC(5'h3, 5'h5);
+    
+    rst_n = 1'b1;
+    waitNclockCycles(8);
+    if (top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5] == 3) $display("OK: reg5 is : %h \n", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+    else begin
+      $display("ERROR: reg5 has to be 3 but is: %h", top_CoreMem_inst.core_inst.id_stage_inst.reg_file_inst.regFile[5]);
+      //$fatal;
+    end
+    #400;
+  end
+endtask
 task test_andC;
   begin
     $display("C.AND Test");
@@ -58,12 +119,12 @@ task test_beqzC;
     pc = 32'b0;
     rstinstrMem();
     encodeAddi(5'h0, 5'h3, 12'h000);
-    encodeBeqzC(5'h3, 12'h0F4);
+    encodeBeqzC(5'h3, 12'hFFa);
     rst_n = 1'b1;
-    waitNclockCycles(4);
-    if (top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o == 252) $display("OK: PC is: %d \n", top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o);
+    waitNclockCycles(6);
+    if (top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o == 6) $display("OK: PC is: %d \n", top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o);
     else begin
-      $display("ERROR: PC has to be 252 but is: %d \n", top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o);
+      $display("ERROR: PC has to be 6 but is: %d \n", top_CoreMem_inst.core_inst.if_stage_inst.instruction_addr_o);
       //$fatal;
     end
   end
@@ -155,6 +216,78 @@ endtask
 //** ENCODE Instruction set RV32C Tests **
 //********************************* 
 //QUADRANT 01 --------------------------------------------------------------------------------------------------------
+task encodeAddiC;
+  input [4:0] rd;
+  input [11:0] immediate;
+  begin
+    c_instruction = {3'b000, immediate[5], rd, immediate[4:0], 2'b01};
+    if (pc_aux == 1'b1)
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][2] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][3] = c_instruction[15:8];
+
+    end
+    else
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][0] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][1] = c_instruction[15:8];
+    end	
+    pc = pc + 32'd2;
+    if (pc_aux == 1'b0) pc_aux = 1'b1;
+    else pc_aux = 1'b0;
+  end
+endtask
+
+task encodeAddC;
+  input [4:0] rs2; 
+  input [4:0] rd;
+  begin
+    c_instruction = {4'b1001, rd, rs2, 2'b10};
+    $display("instruction is: %h \n", c_instruction);
+    $display("pc is: %h \n", pc);
+    $display("pc_aux is: %h \n", pc_aux);
+    if (pc_aux == 1'b1)
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][2] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][3] = c_instruction[15:8];
+
+    end
+    else
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][0] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][1] = c_instruction[15:8];
+    end	
+    pc = pc + 32'd2;
+    if (pc_aux == 1'b0) pc_aux = 1'b1;
+    else pc_aux = 1'b0;
+  end
+endtask
+
+task encodeSubC;
+  input [2:0] rs2; 
+  input [2:0] rd;
+  begin
+    c_instruction = {6'b100011, rd,2'b00, rs2, 2'b01};
+    $display("instruction is: %h \n", c_instruction);
+    $display("pc is: %h \n", pc);
+    $display("pc_aux is: %h \n", pc_aux);
+    if (pc_aux == 1'b1)
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][2] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][3] = c_instruction[15:8];
+
+    end
+    else
+    begin
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][0] = c_instruction[7:0];
+      top_CoreMem_inst.instr_mem.sp_ram_wrap_instr_i.sp_ram_instr_i.mem_instr[pc >> 2][1] = c_instruction[15:8];
+    end	
+    pc = pc + 32'd2;
+    if (pc_aux == 1'b0) pc_aux = 1'b1;
+    else pc_aux = 1'b0;
+  end
+endtask
+
 task encodeAndC;
   input [2:0] rs2;
   input [2:0] rd;

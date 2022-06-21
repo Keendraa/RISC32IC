@@ -172,7 +172,7 @@ module if_stage
                                                                                                         code == 3'b100 & save!={(`DATA_WIDTH/2){1'b0}}? {{(`DATA_WIDTH/2){1'b0}}, save}:
                                                                                                         code == 3'b101 | code == 3'b110 & save!={(`DATA_WIDTH/2){1'b0}}? {instruction_rdata_i[15:0], save}: {25'b0, 7'b0010011};//flush_inst ? {25'b0, 7'b0010011} : instruction_rdata_i;
     */   
-    
+    /*
     assign d_instruction_o = brj_reg | core_init ? {25'b0, 7'b0010011}  :   dd_instruction;                                                                                            
     assign    op_1 = instruction_rdata_i[1:0];
     assign    op_2 = instruction_rdata_i[17:16];
@@ -274,8 +274,8 @@ module if_stage
          //$display("instr: %h", instruction_rdata_i); 
          //$display("instr: %h", dd_instruction); 
     end
-    
-//VERSION 2.2
+    */
+//VERSION 2.2 (non functional)
 //-----------------------------------------------------------------------
 //Adapted for brach instructions and PC unaligned
 /*
@@ -294,27 +294,27 @@ module if_stage
             save <= {(`DATA_WIDTH/2){1'b0}};
             state = IDLE; 
         end
-    else if (!stall_reg & !brj_i) 
+    else if (!stall_reg & !brj_reg) 
     begin
         case (state)
             //STATE 11: 
             IDLE:  
                 begin
                     //$display("IDLE");
-                    dd_instruction = {25'b0, 7'b0010011}; // NOOP
+                    dd_instruction <= {25'b0, 7'b0010011}; // NOOP
                     save <= {(`DATA_WIDTH/2){1'b0}};
-                    pc <= brj_i ? brj_pc_i : pc4;
-                    state <= brj_i & pc_no_aligned? UNALIGNED : ALIGNED;
+                    pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc4);
+                    state <= brj_i & pc_no_aligned? BRANCHED : ALIGNED;
                 end
             //STATE 00: Memory Aligned
             ALIGNED:  
-                begin
+                begin 
                     if (op_1 == 2'b11) // 32b Instruction read. Then, memory aligned.
                     begin
                         //$display("32b Instr");
-                        dd_instruction = instruction_rdata_i;
+                        dd_instruction <= instruction_rdata_i;
                         save <= {(`DATA_WIDTH/2){1'b0}};
-                        pc <= brj_i ? brj_pc_i : pc4;
+                        pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc4);                        
                         state <= brj_i & pc_no_aligned? BRANCHED : ALIGNED;
 
                     end
@@ -324,17 +324,17 @@ module if_stage
                         if (op_2 == 2'b11) // 16b Instruction + 32b/2 Instruction read. Then, memory unaligned.
                         begin
                             //$display("NO 32b Instr + UNALIGNED");
-                            dd_instruction = {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
+                            dd_instruction <= {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
                             save <= instruction_rdata_i[31:16];
-                            pc <= brj_i ? brj_pc_i : pc4;
+                            pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc4);
                             state <= brj_i & pc_no_aligned? BRANCHED : (brj_i? ALIGNED :UNALIGNED);
                         end
                         else // 16b Instruction + 16b Instruction read. Then, memory unaligned.
                         begin
                             //$display("NO 32b Instr + (16 16) UNALIGNED");
-                            dd_instruction = {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
+                            dd_instruction <= {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
                             save <= instruction_rdata_i[31:16];
-                            pc <= brj_i ? brj_pc_i : pc;
+                            pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc);
                             state <= brj_i & pc_no_aligned? BRANCHED : (brj_i? ALIGNED :UNALIGNED_TO_ALIGNED);
                         end
                     end
@@ -343,9 +343,9 @@ module if_stage
             UNALIGNED_TO_ALIGNED:  
                 begin
                     //$display("16b Instr + ALIGNED");
-                    dd_instruction = {{(`DATA_WIDTH/2){1'b0}}, save};
+                    dd_instruction <= {{(`DATA_WIDTH/2){1'b0}}, save};
                     save <= {(`DATA_WIDTH/2){1'b0}};
-                    pc <= brj_i ? brj_pc_i : pc4;
+                    pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc4);
                     state <= brj_i & pc_no_aligned? BRANCHED : ALIGNED; 
                 end
             //STATE 10: Memory Unaligned, part of a 32b instruction already read.
@@ -354,40 +354,199 @@ module if_stage
                     if (op_2 == 2'b11)
                     begin
                         //$display("NO 32b Instr + 32 UNALIGNED");
-                        dd_instruction = {instruction_rdata_i[15:0], save};
+                        dd_instruction <= {instruction_rdata_i[15:0], save};
                         save <= instruction_rdata_i[31:16];
-                        pc <= brj_i ? brj_pc_i : pc4;
+                        pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b010) : (brj_i? brj_pc_i :pc4);
                         state <= brj_i & pc_no_aligned? BRANCHED : (brj_i? ALIGNED :UNALIGNED);
                     end
                     else
                     begin
                         //$display(" 32b Instr + 16 GO TO ALIGNED");
-                        dd_instruction = {instruction_rdata_i[15:0], save};
+                        dd_instruction <= {instruction_rdata_i[15:0], save};
                         save <= instruction_rdata_i[31:16];
-                        pc <= brj_i ? brj_pc_i : pc;
+                        pc <= brj_i & pc_no_aligned? (brj_pc_i-4'b0100) : (brj_i? brj_pc_i :pc);
                         state <= brj_i & pc_no_aligned? BRANCHED : (brj_i? ALIGNED :UNALIGNED_TO_ALIGNED); 
                     end
                 end
+            //STATE 100:
             BRANCHED:
                 begin
                     if (op_2 == 2'b11)
                     begin
                         //$display("32 UNALIGNED");
-                        dd_instruction = {25'b0, 7'b0010011}; // NOOP;
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP;
                         save <= instruction_rdata_i[31:16];
-                        pc <= brj_i ? brj_pc_i : pc + {{`DATA_WIDTH-3{1'b0}}, 3'd2};
+                        pc <= brj_i ? brj_pc_i : pc4;
                         state <= UNALIGNED;
                     end
                     else
                     begin
                         //$display(" 16 GO TO ALIGNED");
-                        dd_instruction = {{(`DATA_WIDTH/2){1'b0}}, instruction_rdata_i[31:16]};
+                        dd_instruction <= {{(`DATA_WIDTH/2){1'b0}}, instruction_rdata_i[31:16]};
                         save <= {(`DATA_WIDTH/2){1'b0}};
-                        pc <= brj_i ? brj_pc_i : pc + {{`DATA_WIDTH-3{1'b0}}, 3'd2};
+                        pc <= brj_i ? brj_pc_i : pc4 ;
                         state <= ALIGNED; 
                     end
                 end
         endcase
     end
-  */
+*/
+
+//VERSION 2.3 (functional)
+//-----------------------------------------------------------------------
+//Adapted for brach instructions and PC unaligned
+
+    assign d_instruction_o = brj_reg | core_init ? {25'b0, 7'b0010011}  :   dd_instruction;                                                                                            
+    assign    op_1 = instruction_rdata_i[1:0];
+    assign    op_2 = instruction_rdata_i[17:16];
+
+    assign    pc_no_aligned = (brj_pc_i % 4) == 0? 0:1;
+
+
+    always @(posedge clk or negedge rst_n)
+    if (!rst_n) 
+        begin
+            dd_instruction = {25'b0, 7'b0010011}; // NOOP
+            pc <= {`DATA_WIDTH{1'b0}};
+            save <= {(`DATA_WIDTH/2){1'b0}};
+            state = IDLE; 
+        end
+    else if (!stall_reg & !brj_reg) 
+    begin
+        case (state)
+            //STATE 11: 
+            IDLE:  
+                begin
+                    if(brj_i)
+                    begin
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc_no_aligned? (brj_pc_i-4'b0010) : brj_pc_i;
+                        state <= pc_no_aligned? BRANCHED : ALIGNED;
+                    end
+                    else
+                    begin
+                        //$display("IDLE");
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc4;
+                        state <= ALIGNED;
+                    end
+                end
+            //STATE 00: Memory Aligned
+            ALIGNED:  
+                begin 
+                    if(brj_i)
+                    begin
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc_no_aligned? (brj_pc_i-4'b0010) : brj_pc_i;
+                        state <= pc_no_aligned? BRANCHED : ALIGNED;
+                    end
+                    else
+                    begin
+                        if (op_1 == 2'b11) // 32b Instruction read. Then, memory aligned.
+                        begin
+                            //$display("32b Instr");
+                            dd_instruction <= instruction_rdata_i;
+                            save <= {(`DATA_WIDTH/2){1'b0}};
+                            pc <= pc4;                        
+                            state <= ALIGNED;
+
+                        end
+                        else 
+                        begin
+                            //$display("NO 32b Instr");
+                            if (op_2 == 2'b11) // 16b Instruction + 32b/2 Instruction read. Then, memory unaligned.
+                            begin
+                                //$display("NO 32b Instr + UNALIGNED");
+                                dd_instruction <= {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
+                                save <= instruction_rdata_i[31:16];
+                                pc <= pc4;
+                                state <= UNALIGNED;
+                            end
+                            else // 16b Instruction + 16b Instruction read. Then, memory unaligned.
+                            begin
+                                //$display("NO 32b Instr + (16 16) UNALIGNED");
+                                dd_instruction <= {{(`DATA_WIDTH/2){1'b0}},instruction_rdata_i[15:0]};
+                                save <= instruction_rdata_i[31:16];
+                                pc <= pc;
+                                state <= UNALIGNED_TO_ALIGNED;
+                            end
+                        end
+                    end
+                end
+            //STATE 01: Memory Unaligned, Compressed instruction already read in last cicle, must send it to ID_stage and add PC. Then, Memory Aligned again.
+            UNALIGNED_TO_ALIGNED:  
+                begin
+                    if(brj_i)
+                    begin
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc_no_aligned? (brj_pc_i-4'b0010) : brj_pc_i;
+                        state <= pc_no_aligned? BRANCHED : ALIGNED;
+                    end
+                    else
+                    begin
+                        //$display("16b Instr + ALIGNED");
+                        dd_instruction <= {{(`DATA_WIDTH/2){1'b0}}, save};
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc4;
+                        state <= ALIGNED; 
+                    end
+                end
+            //STATE 10: Memory Unaligned, part of a 32b instruction already read.
+            UNALIGNED:  
+                begin
+                    if(brj_i)
+                    begin
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= pc_no_aligned? (brj_pc_i-4'b0010) : brj_pc_i;
+                        state <= pc_no_aligned? BRANCHED : ALIGNED;
+                    end
+                    else
+                    begin
+                        if (op_2 == 2'b11)
+                        begin
+                            //$display("NO 32b Instr + 32 UNALIGNED");
+                            dd_instruction <= {instruction_rdata_i[15:0], save};
+                            save <= instruction_rdata_i[31:16];
+                            pc <= pc4;
+                            state <= UNALIGNED;
+                        end
+                        else
+                        begin
+                            //$display(" 32b Instr + 16 GO TO ALIGNED");
+                            dd_instruction <= {instruction_rdata_i[15:0], save};
+                            save <= instruction_rdata_i[31:16];
+                            pc <= pc;
+                            state <= UNALIGNED_TO_ALIGNED; 
+                        end
+                    end
+                end
+            //STATE 100:
+            BRANCHED:
+                begin
+                    if (op_2 == 2'b11)
+                    begin
+                        //$display("32 UNALIGNED");
+                        dd_instruction <= {25'b0, 7'b0010011}; // NOOP;
+                        save <= instruction_rdata_i[31:16];
+                        pc <= brj_i ? brj_pc_i : pc4;
+                        state <= UNALIGNED;
+                    end
+                    else
+                    begin
+                        //$display(" 16 GO TO ALIGNED");
+                        dd_instruction <= {{(`DATA_WIDTH/2){1'b0}}, instruction_rdata_i[31:16]};
+                        save <= {(`DATA_WIDTH/2){1'b0}};
+                        pc <= brj_i ? brj_pc_i : pc4 ;
+                        state <= ALIGNED; 
+                    end
+                end
+        endcase
+    end
+    else if (!stall_reg) 
+    pc <= pc4 ;
 endmodule 
