@@ -413,6 +413,8 @@ always@(*)
 
       INTERNAL_COMPRESSED_OPCODE:
       begin
+        if(instruction!=32'b0)
+        begin
         quadrant_code <= instruction[1:0];
         first_op_code <= instruction[15:13];
         
@@ -742,6 +744,7 @@ always@(*)
           end
           
         endcase
+        end
       end
 
       default: ; //default required by Quartus II 13.1
