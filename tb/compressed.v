@@ -4,7 +4,7 @@
 
 //`include"testbench.v"
 
-module tb_arithmeticologic();
+module tb_compressed();
 
 	tb TB();
 	
